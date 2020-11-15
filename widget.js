@@ -1,40 +1,36 @@
 // use true to initially give Scriptable calendar access
 // use false to open Calendar when script is run - when tapping on the widget
-const debug = false;
+const debug = true;
 
 // get widget params
-const params = JSON.parse(args.widgetParameter) || { bg: "transparent.jpg" };
+const params = JSON.parse(args.widgetParameter) || { bg: "1121.jpg" };
+
 // a separate image can be specified per widget in widget params:
 // Long press on widget -> Edit Widget -> Parameter
 // parameter config would look like this:
 // { "bg": "2111.jpg", "view": "events" }
 const imageName = params.bg;
-const widgetBackgroundColor = "#000000";
-// background color for today
-const todayColor = "#F24747";
-// background for all other days, only applicable if showEventCircles is true
-const eventCircleColor = "#304F9E";
-const todayTextColor = "#000000";
-const dateTextColor = "#ffffff";
-// color for events
-const textColor = "#ffffff";
-// opacity value for weekends and event times
-const opacity = 0.7;
+
 // choose either a split view or show only one of them
 const showEventsView = params.view ? params.view === "events" : true;
 const showCalendarView = params.view ? params.view === "cal" : true;
+
+const monthDiff = params.monthDiff ? params.monthDiff : 0;
+
+const backgroundColor = "#000000";
+const currentDayColor = "#FF0000";
+const textColor = "#ffffff";
+// opacity value for weekends and times
+const opacity = 0.7;
+
 // show or hide all day events
 const showAllDayEvents = true;
 // show calendar colored bullet for each event
 const showCalendarBullet = true;
 // week starts on a Sunday
-const startWeekOnSunday = false;
+const startWeekOnSunday = true;
 // show events for the whole week or limit just to the day
 const showEventsForWholeWeek = false;
-// show full title or truncate to a single line
-const showCompleteTitle = false;
-// show a circle behind each date that has an event then
-const showEventCircles = true;
 
 if (config.runsInWidget) {
   let widget = await createWidget();
@@ -47,6 +43,7 @@ if (config.runsInWidget) {
 } else {
   const appleDate = new Date("2001/01/01");
   const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+  console.log(timestamp);
   const callback = new CallbackURL("calshow:" + timestamp);
   callback.open();
   Script.complete();
@@ -54,29 +51,201 @@ if (config.runsInWidget) {
 
 async function createWidget() {
   let widget = new ListWidget();
-  widget.backgroundColor = new Color(widgetBackgroundColor);
+  widget.backgroundColor = new Color(backgroundColor);
   setWidgetBackground(widget, imageName);
   widget.setPadding(16, 16, 16, 16);
+  
+  const now = new Date();
+  const monthToRender = new Date(now.getFullYear(), now.getMonth() + monthDiff, 1);
+  
+  const monthMap = await buildMonth(monthToRender);
+  const weekMap = await buildWeeks(monthToRender);
+  
+  const freeDays = await getNextFreeDays(monthMap);
+  console.log(freeDays);
 
   // layout horizontally
   const globalStack = widget.addStack();
 
   if (showEventsView) {
-    await buildEventsView(globalStack);
+    await buildEventsView(globalStack, monthToRender, freeDays);
   }
   if (showCalendarView) {
-    await buildCalendarView(globalStack);
+    buildCalendarView(globalStack, monthToRender, weekMap);
   }
 
   return widget;
 }
 
 /**
+ * Checks if the day is considered "busy"
+ *
+ * @param  {[CalendarEvent]} events - the events that are being processed
+ */
+async function isBusy(events) {
+  for (const event of events) {
+    if (event["title"] !== "Oncall") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if oncall for the day
+ *
+ * @param  {[CalendarEvent]} events - the events that are being processed
+ */
+async function isOncall(events) {
+  for (const event of events) {
+    if (event["title"] === "Oncall") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Creates an object that describes a calendar day. Currently contains "isBusy" and "isOncall":
+ * {"isBusy":true,"isOncall":true}
+ *
+ * @param  {Date} date - a date object that will be described
+ */
+async function buildDay(date) {
+  let events = await CalendarEvent.between(
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()+1)
+    );
+  return {
+      isBusy: await isBusy(events),
+      isOncall: await isOncall(events)
+  }
+}
+
+async function getNextFreeDays(monthMap) {
+  const currentDay = new Date().getDate();
+  const lastDateInMonth = await getLastDateOfMonth(new Date());
+  const lastDayInMonth = lastDateInMonth.getDate();
+  let freeDays = [];
+  
+  for (var i=currentDay; i<lastDayInMonth; i++) {
+    if (monthMap[i] && !monthMap[i]["isBusy"]) {
+      freeDays.push(i);
+    }
+  }
+  
+  return freeDays;
+}
+
+/**
+ * Creates a map of days in the month to a description of said day. Currently contains "isBusy" and "isOncall":
+ * {"1":{"isBusy":true,"isOncall":true},"2":...}
+ *
+ * @param  {Date} date - a date object that holds the current month
+ */
+async function buildMonth(date) {
+  const lastDayInMonth = await getLastDateOfMonth(date);
+  const daysInMonth = lastDayInMonth.getDate();
+  let monthMap = {};
+  let i=1;
+  while (i<=daysInMonth) {
+    monthMap[i] = await buildDay(new Date(date.getFullYear(), date.getMonth(), i));
+    i++;
+  }
+  return monthMap;
+}
+
+/**
+ * Creates a map of weeks in the month to an aggregated description of said week. Currently contains "isBusy" and "isOncall":
+ * {"0":{"busyDays":3,"oncallDays":6},"1":...}
+ *
+ * @param  {Date} date - a date object that holds the current month
+ */
+async function buildWeeks(date) {
+  const monthMap = buildMonth(date);
+  const firstDayOfMonth = await getFirstDateOfMonth(date);
+  const firstDayOfCalendar = startWeekOnSunday ? await getSundayOfWeek(firstDayOfMonth) : await getMondayOfWeek(firstDayOfMonth);
+
+  let dateIterator = new Date(firstDayOfCalendar);
+  let weekMap = {};
+  let week = 0;
+  
+  while (dateIterator.getMonth() !== date.getMonth() + 1 || dateIterator.getDay() !== 0) {
+    if (weekMap[week] === undefined) {
+      weekMap[week] = {
+        "busyDays": 0,
+        "oncallDays": 0
+      }
+    }
+    
+    const day = await buildDay(dateIterator);
+    weekMap[week]["busyDays"] += day["isBusy"]
+    weekMap[week]["oncallDays"] += day["isOncall"]
+    dateIterator = new Date(dateIterator.setDate(dateIterator.getDate() + 1));
+    
+    if (dateIterator.getDay() === 0) {
+      week++;
+    }
+  }
+
+  return weekMap;
+}
+
+/**
+ * Gets the first date of the month
+ *
+ * @param  {Date} date - a date object that holds the current month
+ *
+ * @returns {Date} the first date of the month from the given date object
+ */
+async function getFirstDateOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/**
+ * Gets the last date of the month
+ *
+ * @param  {Date} date - a date object that holds the current month
+ *
+ * @returns {Date} the last date of the month from the given date object
+ */
+async function getLastDateOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 0);
+}
+
+/**
+ * Gets the Sunday of the given week
+ *
+ * @param  {Date} date - a date object for the week
+ *
+ * @returns {Date} the Sunday of the week from the given date object
+ */
+async function getSundayOfWeek(date) {
+  const day = date.getDay();
+  const diff = date.getDate() - day;
+  return new Date(new Date(date).setDate(diff));
+}
+
+/**
+ * Gets the Monday of the given week
+ *
+ * @param  {Date} date - a date object for the week
+ *
+ * @returns {Date} the Monday of the week from the given date object
+ */
+function getMondayOfWeek(date) {
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6:1);
+  return new Date(new Date(date).setDate(diff));
+}
+
+/**
  * Builds the events view
  *
  * @param  {WidgetStack} stack - onto which the events view is built
+ * @param  {Date} date - a date object that holds the current month
  */
-async function buildEventsView(stack) {
+async function buildEventsView(stack, date, freeDays) {
   const leftStack = stack.addStack();
   // push event view to the left
   stack.addSpacer();
@@ -85,26 +254,22 @@ async function buildEventsView(stack) {
   // center the whole left part of the widget
   leftStack.addSpacer();
 
-  const date = new Date();
-
   let events = [];
   if (showEventsForWholeWeek) {
     events = await CalendarEvent.thisWeek([]);
   } else {
     events = await CalendarEvent.today([]);
   }
-
   const futureEvents = [];
   // if we show events for the whole week, then we need to filter allDay events
   // to not show past allDay events
-  // if allDayEvent's start date is later than a day ago from now then show it
   for (const event of events) {
     if (
       (showAllDayEvents &&
         event.isAllDay &&
         event.startDate.getTime() >
           new Date(new Date().setDate(new Date().getDate() - 1))) ||
-      (event.endDate.getTime() > date.getTime() &&
+      (event.startDate.getTime() > date.getTime() &&
         !event.title.startsWith("Canceled:"))
     ) {
       futureEvents.push(event);
@@ -123,7 +288,8 @@ async function buildEventsView(stack) {
       }
     }
   } else {
-    addWidgetTextLine(leftStack, `No more events.`, {
+    const text = showEventsForWholeWeek ? "this week" : "today";
+    addWidgetTextLine(leftStack, `No more events ${text}.`, {
       color: textColor,
       opacity,
       font: Font.regularSystemFont(15),
@@ -138,17 +304,17 @@ async function buildEventsView(stack) {
  * Builds the calendar view
  *
  * @param  {WidgetStack} stack - onto which the calendar is built
+ * @param  {Date} date - a date object that holds the current month
  */
-async function buildCalendarView(stack) {
+function buildCalendarView(stack, date, weekMap) {
   const rightStack = stack.addStack();
   rightStack.layoutVertically();
 
-  const date = new Date();
   const dateFormatter = new DateFormatter();
   dateFormatter.dateFormat = "MMMM";
 
   // if calendar is on a small widget make it a bit smaller to fit
-  const spacing = config.widgetFamily === "small" ? 18 : 19;
+  const spacing = config.widgetFamily === "small" ? 18 : 20;
 
   // Current month line
   const monthLine = rightStack.addStack();
@@ -160,12 +326,13 @@ async function buildCalendarView(stack) {
     font: Font.boldSystemFont(13),
   });
 
+  // between the month name and the week calendar
+  rightStack.addSpacer(5);
+
   const calendarStack = rightStack.addStack();
   calendarStack.spacing = 2;
 
-  const month = buildMonthVertical();
-
-  const { eventCounts, intensity } = await countEvents();
+  const month = buildMonthVertical(date, weekMap);
 
   for (let i = 0; i < month.length; i += 1) {
     let weekdayStack = calendarStack.addStack();
@@ -176,25 +343,15 @@ async function buildCalendarView(stack) {
       dayStack.size = new Size(spacing, spacing);
       dayStack.centerAlignContent();
 
-      // if the day is today, highlight it
-      if (month[i][j] === date.getDate().toString()) {
-        const highlightedDate = getDateImage(
+      const today = new Date();
+      const isCurrentMonth = today.getMonth() === date.getMonth();
+      if (isCurrentMonth && 
+        month[i][j] === new Date().getDate().toString()) {
+        const highlightedDate = getHighlightedDate(
           month[i][j],
-          todayColor,
-          todayTextColor,
-          1
+          currentDayColor
         );
         dayStack.addImage(highlightedDate);
-      } else if (j > 0 && month[i][j] !== " ") {
-        const dateImage = getDateImage(
-          month[i][j],
-          eventCircleColor,
-          dateTextColor,
-          showEventCircles
-            ? eventCounts[parseInt(month[i][j]) - 1] * intensity
-            : 0
-        );
-        dayStack.addImage(dateImage);
       } else {
         addWidgetTextLine(dayStack, `${month[i][j]}`, {
           color: textColor,
@@ -205,40 +362,6 @@ async function buildCalendarView(stack) {
       }
     }
   }
-}
-
-async function countEvents() {
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfMonth = new Date(
-    new Date(firstOfMonth).setMonth(firstOfMonth.getMonth() + 1)
-  );
-
-  let events = await CalendarEvent.between(firstOfMonth, lastOfMonth);
-
-  const eventCounts = events
-    .map((event) => event.startDate.getDate())
-    .reduce(
-      (acc, date) => {
-        // 0 indexed, so date in array is at post date-1
-        acc[date - 1] = acc[date - 1] + 1;
-        return acc;
-      },
-      Array.from(Array(31), () => 0)
-    );
-
-  const max = Math.max(...eventCounts);
-  const min = Math.min(...eventCounts);
-
-  // calculate an intensity coefficient based on the events' range for the
-  // current month. If the range is from 1 to 6, the coefficient is 0.17, the
-  // event background's alpha value will be 0.17 * numEvents that day
-  let intensity = 1 / (max - min + 1);
-  // for a low range the intensity would be closer to 1, so we limit the
-  // intensity at most to 0.2
-  intensity = intensity > 0.2 ? 0.2 : intensity;
-
-  return { eventCounts, intensity };
 }
 
 /**
@@ -262,7 +385,7 @@ function isWeekend(index) {
 
 /**
  * Creates an array of arrays, where the inner arrays include the same weekdays
- * along with a weekday identifier in the 0th position
+ * along with an identifier in 0 position
  * [
  *   [ 'M', ' ', '7', '14', '21', '28' ],
  *   [ 'T', '1', '8', '15', '22', '29' ],
@@ -272,23 +395,18 @@ function isWeekend(index) {
  *
  * @returns {Array<Array<string>>}
  */
-function buildMonthVertical() {
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+function buildMonthVertical(date, weekMap) {
+  const firstDayStack = new Date(date.getFullYear(), date.getMonth(), 1);
+  const lastDayStack = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
   let month = [["M"], ["T"], ["W"], ["T"], ["F"], ["S"]];
   let index = 1;
   let offset = 1;
 
-  // weekdays are 0 indexed starting with sunday
-  let firstDay = firstOfMonth.getDay() !== 0 ? firstOfMonth.getDay() : 7;
-
   if (startWeekOnSunday) {
     month.unshift(["S"]);
     index = 0;
     offset = 0;
-    firstDay = firstDay % 7;
   } else {
     month.push(["S"]);
   }
@@ -296,12 +414,12 @@ function buildMonthVertical() {
   let dayStackCounter = 0;
 
   // fill with empty slots
-  for (; index < firstDay; index += 1) {
+  for (; index < firstDayStack.getDay(); index += 1) {
     month[index - offset].push(" ");
     dayStackCounter = (dayStackCounter + 1) % 7;
   }
 
-  for (let date = 1; date <= lastOfMonth.getDate(); date += 1) {
+  for (let date = 1; date <= lastDayStack.getDate(); date += 1) {
     month[dayStackCounter].push(`${date}`);
     dayStackCounter = (dayStackCounter + 1) % 7;
   }
@@ -315,36 +433,37 @@ function buildMonthVertical() {
       month[index].push(" ");
     }
   });
+  
+  month[7] = ['%'];
+  for (const [key, value] of Object.entries(weekMap)) {
+    const percentage = Math.round(100 * value["busyDays"] / 7);
+    month[7].push(percentage);
+  }
 
   return month;
 }
 
 /**
- * Creates images for dates, depending on the number of events that day
+ * Draws a circle with a date on it for highlighting in calendar view
  *
- * @param  {string} date - to draw into the circle
- * @param  {string} color - of the background
- * @param  {number} intensity - a calculated coefficient for alpha value
- * @param  {boolean} isToday - is it today's date, for highlighting
+ * @param  {string} date to draw into the circle
  *
  * @returns {Image} a circle with the date
  */
-function getDateImage(date, backgroundColor, textColor, intensity) {
+function getHighlightedDate(date, color) {
   const drawing = new DrawContext();
   drawing.respectScreenScale = true;
   const size = 50;
   drawing.size = new Size(size, size);
   drawing.opaque = false;
-
-  drawing.setFillColor(new Color(backgroundColor, intensity));
+  drawing.setFillColor(new Color(color));
   drawing.fillEllipse(new Rect(1, 1, size - 2, size - 2));
-
   drawing.setFont(Font.boldSystemFont(25));
   drawing.setTextAlignedCenter();
-  drawing.setTextColor(new Color(textColor));
+  drawing.setTextColor(new Color("#ffffff"));
   drawing.drawTextInRect(date, new Rect(0, 10, size, size));
-
-  return drawing.getImage();
+  const currentDayImg = drawing.getImage();
+  return currentDayImg;
 }
 
 /**
@@ -362,27 +481,6 @@ function formatTime(date) {
 }
 
 /**
- * get suffix for a given date
- *
- * @param {number} date
- *
- * @returns {string} suffix
- */
-function getSuffix(date) {
-  if (date > 3 && date < 21) return "th";
-  switch (date % 10) {
-    case 1:
-      return "st";
-    case 2:
-      return "nd";
-    case 3:
-      return "rd";
-    default:
-      return "th";
-  }
-}
-
-/**
  * Adds a event name along with start and end times to widget stack
  *
  * @param  {WidgetStack} stack - onto which the event is added
@@ -393,19 +491,18 @@ function formatEvent(stack, event, color, opacity) {
   let eventLine = stack.addStack();
 
   if (showCalendarBullet) {
-    // show calendar bullet in front of event name
+    // show calendar bulet in front of event name
     addWidgetTextLine(eventLine, "● ", {
       color: event.calendar.color.hex,
       font: Font.mediumSystemFont(14),
-      lineLimit: showCompleteTitle ? 0 : 1,
+      lineLimit: 1,
     });
   }
-
   // event title
   addWidgetTextLine(eventLine, event.title, {
     color,
     font: Font.mediumSystemFont(14),
-    lineLimit: showCompleteTitle ? 0 : 1,
+    lineLimit: 1,
   });
   // event duration
   let time;
@@ -416,13 +513,12 @@ function formatEvent(stack, event, color, opacity) {
   }
 
   const today = new Date().getDate();
-  const eventDate = event.startDate.getDate();
+  const eventDate = new Date(event.startDate).getDate();
   // if a future event is not today, we want to show it's date
-  if (eventDate !== today) {
-    time = `${eventDate}${getSuffix(eventDate)} ${time}`;
+  if (today !== eventDate) {
+    time = `${eventDate}: ${time}`;
   }
 
-  // event time
   addWidgetTextLine(stack, time, {
     color,
     opacity,
@@ -444,7 +540,6 @@ function addWidgetTextLine(
 ) {
   let textLine = widget.addText(text);
   textLine.textColor = new Color(color);
-  textLine.lineLimit = lineLimit;
   if (typeof font === "string") {
     textLine.font = new Font(font, textSize);
   } else {
