@@ -38,6 +38,7 @@ const startWeekOnSunday = true;
 // show events for the whole week or limit just to the day
 const showEventsForWholeWeek = false;
 
+// Uncomment if you do not want to use the automatic widget updater
 // if (config.runsInWidget) {
 //   let widget = await createWidget();
 //   Script.setWidget(widget);
@@ -54,6 +55,11 @@ const showEventsForWholeWeek = false;
 //   callback.open();
 //   Script.complete();
 // }
+
+async function clickWidget() {
+  let widget = await createWidget();
+  await widget.presentMedium();
+}
 
 async function createWidget() {
   let widget = new ListWidget();
