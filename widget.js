@@ -1,3 +1,9 @@
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: pink; icon-glyph: magic;
+
+//@ts-check
+
 // use true to initially give Scriptable calendar access
 // use false to open Calendar when script is run - when tapping on the widget
 const debug = true;
@@ -571,4 +577,8 @@ function getImageUrl(name) {
 function setWidgetBackground(widget, imageName) {
   const imageUrl = getImageUrl(imageName);
   widget.backgroundImage = Image.fromFile(imageUrl);
+}
+
+module.exports = {
+    createWidget
 }
