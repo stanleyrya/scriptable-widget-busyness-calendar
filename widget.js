@@ -38,22 +38,22 @@ const startWeekOnSunday = true;
 // show events for the whole week or limit just to the day
 const showEventsForWholeWeek = false;
 
-if (config.runsInWidget) {
-  let widget = await createWidget();
-  Script.setWidget(widget);
-  Script.complete();
-} else if (debug) {
-  Script.complete();
-  let widget = await createWidget();
-  await widget.presentMedium();
-} else {
-  const appleDate = new Date("2001/01/01");
-  const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
-  console.log(timestamp);
-  const callback = new CallbackURL("calshow:" + timestamp);
-  callback.open();
-  Script.complete();
-}
+// if (config.runsInWidget) {
+//   let widget = await createWidget();
+//   Script.setWidget(widget);
+//   Script.complete();
+// } else if (debug) {
+//   Script.complete();
+//   let widget = await createWidget();
+//   await widget.presentMedium();
+// } else {
+//   const appleDate = new Date("2001/01/01");
+//   const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+//   console.log(timestamp);
+//   const callback = new CallbackURL("calshow:" + timestamp);
+//   callback.open();
+//   Script.complete();
+// }
 
 async function createWidget() {
   let widget = new ListWidget();
