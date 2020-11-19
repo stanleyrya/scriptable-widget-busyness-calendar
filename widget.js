@@ -130,6 +130,12 @@ async function buildDay(date) {
   }
 }
 
+/**
+ * Creates an array of free days given a monthMap. For example:
+ * [1, 3, 6, 15]
+ *
+ * @param  {MonthMap} monthMap - a map object that contains abbreviated calendar information about each day
+ */
 async function getNextFreeDays(monthMap) {
   const currentDay = new Date().getDate();
   const lastDateInMonth = await getLastDateOfMonth(new Date());
