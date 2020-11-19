@@ -24,7 +24,7 @@ const showCalendarView = params.view ? params.view === "cal" : true;
 const backgroundColor = "#000000";
 const currentDayColor = "#FF0000";
 const textColor = "#ffffff";
-const busyColor = "#D3D3D3";
+const busyColor = "#696969";
 // opacity value for weekends and times
 const opacity = 0.7;
 
