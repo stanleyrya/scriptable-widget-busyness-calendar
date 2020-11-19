@@ -21,8 +21,6 @@ const imageName = params.bg;
 const showEventsView = params.view ? params.view === "events" : true;
 const showCalendarView = params.view ? params.view === "cal" : true;
 
-const monthDiff = params.monthDiff ? params.monthDiff : 0;
-
 const backgroundColor = "#000000";
 const currentDayColor = "#FF0000";
 const textColor = "#ffffff";
@@ -40,12 +38,12 @@ const showEventsForWholeWeek = false;
 
 // Uncomment if you do not want to use the automatic widget updater
 // if (config.runsInWidget) {
-//   let widget = await createWidget();
+//   let widget = await createWidget(params);
 //   Script.setWidget(widget);
 //   Script.complete();
 // } else if (debug) {
 //   Script.complete();
-//   let widget = await createWidget();
+//   let widget = await createWidget(params);
 //   await widget.presentMedium();
 // } else {
 //   const appleDate = new Date("2001/01/01");
@@ -56,12 +54,9 @@ const showEventsForWholeWeek = false;
 //   Script.complete();
 // }
 
-async function clickWidget() {
-  let widget = await createWidget();
-  await widget.presentMedium();
-}
-
-async function createWidget() {
+async function createWidget(params) {
+  const monthDiff = (params && params.monthDiff) ? params.monthDiff : 0;
+  
   let widget = new ListWidget();
   widget.backgroundColor = new Color(backgroundColor);
   setWidgetBackground(widget, imageName);
