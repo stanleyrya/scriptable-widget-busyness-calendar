@@ -345,11 +345,15 @@ function buildCalendarView(stack, date, monthMap, weekMap) {
   for (let i = 0; i < month.length; i += 1) {
     let weekdayStack = calendarStack.addStack();
     weekdayStack.layoutVertically();
+    
+    console.log(monthMap)
 
     for (let j = 0; j < month[i].length; j += 1) {
       let dayStack = weekdayStack.addStack();
       dayStack.size = new Size(spacing, spacing);
       dayStack.centerAlignContent();
+      
+      console.log(month[i][j])
 
       const today = new Date();
       const isCurrentMonth = today.getMonth() === date.getMonth();
