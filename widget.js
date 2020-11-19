@@ -360,7 +360,7 @@ function buildCalendarView(stack, date, monthMap, weekMap) {
           currentDayColor
         );
         dayStack.addImage(highlightedDate);
-      } else if (monthMap[month[i][j]].isBusy) {
+      } else if (monthMap[month[i][j]]["isBusy"]) {
         const highlightedDate = getHighlightedDate(
           month[i][j],
           busyColor
