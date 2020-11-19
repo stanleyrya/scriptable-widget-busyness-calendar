@@ -581,6 +581,5 @@ function setWidgetBackground(widget, imageName) {
 }
 
 module.exports = {
-    createWidget,
-    clickWidget
+    createWidget
 }
