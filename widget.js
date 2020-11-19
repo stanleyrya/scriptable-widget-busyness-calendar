@@ -24,6 +24,7 @@ const showCalendarView = params.view ? params.view === "cal" : true;
 const backgroundColor = "#000000";
 const currentDayColor = "#FF0000";
 const textColor = "#ffffff";
+const busyColor = "#D3D3D3";
 // opacity value for weekends and times
 const opacity = 0.7;
 
@@ -78,7 +79,7 @@ async function createWidget(params) {
     await buildEventsView(globalStack, monthToRender, freeDays);
   }
   if (showCalendarView) {
-    buildCalendarView(globalStack, monthToRender, weekMap);
+    buildCalendarView(globalStack, monthToRender, monthMap, weekMap);
   }
 
   return widget;
@@ -313,7 +314,7 @@ async function buildEventsView(stack, date, freeDays) {
  * @param  {WidgetStack} stack - onto which the calendar is built
  * @param  {Date} date - a date object that holds the current month
  */
-function buildCalendarView(stack, date, weekMap) {
+function buildCalendarView(stack, date, monthMap, weekMap) {
   const rightStack = stack.addStack();
   rightStack.layoutVertically();
 
@@ -357,6 +358,12 @@ function buildCalendarView(stack, date, weekMap) {
         const highlightedDate = getHighlightedDate(
           month[i][j],
           currentDayColor
+        );
+        dayStack.addImage(highlightedDate);
+      } else if (monthMap[month[i][j]].isBusy) {
+        const highlightedDate = getHighlightedDate(
+          month[i][j],
+          busyColor
         );
         dayStack.addImage(highlightedDate);
       } else {
