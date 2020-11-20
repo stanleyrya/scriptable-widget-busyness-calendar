@@ -38,22 +38,22 @@ const startWeekOnSunday = true;
 const showEventsForWholeWeek = false;
 
 // Uncomment if you do not want to use the automatic widget updater
-// if (config.runsInWidget) {
-//   let widget = await createWidget(params);
-//   Script.setWidget(widget);
-//   Script.complete();
-// } else if (debug) {
-//   Script.complete();
-//   let widget = await createWidget(params);
-//   await widget.presentMedium();
-// } else {
-//   const appleDate = new Date("2001/01/01");
-//   const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
-//   console.log(timestamp);
-//   const callback = new CallbackURL("calshow:" + timestamp);
-//   callback.open();
-//   Script.complete();
-// }
+if (config.runsInWidget) {
+  let widget = await createWidget(params);
+  Script.setWidget(widget);
+  Script.complete();
+} else if (debug) {
+  Script.complete();
+  let widget = await createWidget(params);
+  await widget.presentMedium();
+} else {
+  const appleDate = new Date("2001/01/01");
+  const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+  console.log(timestamp);
+  const callback = new CallbackURL("calshow:" + timestamp);
+  callback.open();
+  Script.complete();
+}
 
 async function createWidget(params) {
   const monthDiff = (params && params.monthDiff) ? params.monthDiff : 0;
