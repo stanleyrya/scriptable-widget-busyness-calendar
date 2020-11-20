@@ -39,6 +39,9 @@ const showEventsForWholeWeek = false;
 
 console.log("args: " + JSON.stringify(args));
 console.log("config: " + JSON.stringify(config));
+let widget = await createWidget(params);
+// Script.setWidget(widget);
+// Script.complete();
 
 // try {
 //   // Uncomment if you do not want to use the automatic widget updater
