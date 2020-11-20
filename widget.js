@@ -39,7 +39,10 @@ const showEventsForWholeWeek = false;
 
 console.log("args: " + JSON.stringify(args));
 console.log("config: " + JSON.stringify(config));
-let widget = await createWidget(params);
+// let widget = await createWidget(params);
+(async function() {
+  await createWidget(params);
+}());
 // Script.setWidget(widget);
 // Script.complete();
 
