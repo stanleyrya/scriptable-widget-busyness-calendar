@@ -40,28 +40,28 @@ const showEventsForWholeWeek = false;
 console.log("args: " + JSON.stringify(args));
 console.log("config: " + JSON.stringify(config));
 
-try {
-  // Uncomment if you do not want to use the automatic widget updater
-  if (config.runsInWidget) {
-    let widget = await createWidget(params);
-    Script.setWidget(widget);
-    Script.complete();
-  } else if (debug) {
-    Script.complete();
-    let widget = await createWidget(params);
-    await widget.presentMedium();
-  } else {
-    const appleDate = new Date("2001/01/01");
-    const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
-    console.log(timestamp);
-    const callback = new CallbackURL("calshow:" + timestamp);
-    callback.open();
-    Script.complete();
-  }
-} catch (err) {
-  console.error("Error!");
-//   console.error(err);
-}
+// try {
+//   // Uncomment if you do not want to use the automatic widget updater
+//   if (config.runsInWidget) {
+//     let widget = await createWidget(params);
+//     Script.setWidget(widget);
+//     Script.complete();
+//   } else if (debug) {
+//     Script.complete();
+//     let widget = await createWidget(params);
+//     await widget.presentMedium();
+//   } else {
+//     const appleDate = new Date("2001/01/01");
+//     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+//     console.log(timestamp);
+//     const callback = new CallbackURL("calshow:" + timestamp);
+//     callback.open();
+//     Script.complete();
+//   }
+// } catch (err) {
+//   console.error("Error!");
+// //   console.error(err);
+// }
 
 async function createWidget(params) {
   const monthDiff = (params && params.monthDiff) ? params.monthDiff : 0;
