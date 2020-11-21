@@ -37,38 +37,24 @@ const startWeekOnSunday = true;
 // show events for the whole week or limit just to the day
 const showEventsForWholeWeek = false;
 
-console.log("args: " + JSON.stringify(args));
-console.log("config: " + JSON.stringify(config));
-// let widget = await createWidget(params);
-(async function() {
-  let widget = await createWidget(params);
-  console.log(widget);
-}());
-// Script.setWidget(widget);
-// Script.complete();
-
-// try {
-//   // Uncomment if you do not want to use the automatic widget updater
-//   if (config.runsInWidget) {
-//     let widget = await createWidget(params);
-//     Script.setWidget(widget);
-//     Script.complete();
-//   } else if (debug) {
-//     Script.complete();
-//     let widget = await createWidget(params);
-//     await widget.presentMedium();
-//   } else {
-//     const appleDate = new Date("2001/01/01");
-//     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
-//     console.log(timestamp);
-//     const callback = new CallbackURL("calshow:" + timestamp);
-//     callback.open();
-//     Script.complete();
-//   }
-// } catch (err) {
-//   console.error("Error!");
-// //   console.error(err);
-// }
+async function run(params) {
+	if (config.runsInWidget) {
+     let widget = await createWidget(params);
+     Script.setWidget(widget);
+     Script.complete();
+   } else if (debug) {
+     Script.complete();
+     let widget = await createWidget(params);
+     await widget.presentMedium();
+   } else {
+     const appleDate = new Date("2001/01/01");
+     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+     console.log(timestamp);
+     const callback = new CallbackURL("calshow:" + timestamp);
+     callback.open();
+     Script.complete();
+   }
+}
 
 async function createWidget(params) {
   const monthDiff = (params && params.monthDiff) ? params.monthDiff : 0;
@@ -612,6 +598,16 @@ function setWidgetBackground(widget, imageName) {
   widget.backgroundImage = Image.fromFile(imageUrl);
 }
 
-module.exports = {
-    createWidget
+(async function() {
+	if (Script.name() === 'busyness-calendar') {
+		await run(params);
+	}
+}());
+
+module.exports = function(params) {
+		(async function() {
+			if (Script.name() !== 'busyness-calendar') {
+				await run(params);
+			}
+		}());
 }
