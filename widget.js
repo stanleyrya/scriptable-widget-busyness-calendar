@@ -9,7 +9,7 @@
 const debug = true;
 
 // get widget params
-const params = JSON.parse(args.widgetParameter) || { bg: "1121.jpg" };
+const params = JSON.parse(args.widgetParameter) || loadStoredParameters(Script.name()) || { bg: "1121.jpg" };
 
 // a separate image can be specified per widget in widget params:
 // Long press on widget -> Edit Widget -> Parameter
@@ -54,6 +54,44 @@ async function run(params) {
      callback.open();
      Script.complete();
    }
+}
+
+function getCurrentDir() {
+    const fm = FileManager.local();
+    const thisScriptPath = module.filename;
+    return thisScriptPath.replace(fm.fileName(thisScriptPath, true), '');
+}
+
+/**
+ * Attempts to load the file ./storage/name.json
+ * Returns null if it cannot be loaded.
+ */
+function loadStoredParameters(name) {
+    const fm = FileManager.local();
+    const storageDir = getCurrentDir() + "storage";
+    const parameterPath = storageDir + "/" + name + ".json";
+
+    if (!fm.fileExists(storageDir)) {
+        console.log("Storage folder does not exist!");
+        return null;
+    } else if (!fm.isDirectory(storageDir)) {
+        console.log("Storage folder exists but is not a directory!");
+        return null;
+    } else if (!fm.fileExists(parameterPath)) {
+        console.log("Parameter file does not exist!");
+        return null;
+    } else if (fm.isDirectory(parameterPath)) {
+        console.log("Parameter file is a directory!");
+        return null;
+    }
+
+    const parameterJSON = JSON.parse(fm.readString(parameterPath));
+    if (parameterJSON !== null) {
+        return parameterJSON;
+    } else {
+        console.log("Could not load parameter file as JSON!");
+        return null;
+    }
 }
 
 async function createWidget(params) {
@@ -598,16 +636,9 @@ function setWidgetBackground(widget, imageName) {
   widget.backgroundImage = Image.fromFile(imageUrl);
 }
 
-(async function() {
-	if (Script.name() === 'busyness-calendar') {
-		await run(params);
-	}
-}());
-
-module.exports = function(params) {
-		(async function() {
-			if (Script.name() !== 'busyness-calendar') {
-				await run(params);
-			}
-		}());
+if (params) {
+    console.log("Using params: " + JSON.stringify(params))
+    await run(params);
+} else {
+    console.log("No valid parameters!")
 }
