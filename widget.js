@@ -38,28 +38,28 @@ const startWeekOnSunday = true;
 const showEventsForWholeWeek = false;
 
 async function run(params) {
-	if (config.runsInWidget) {
-     let widget = await createWidget(params);
-     Script.setWidget(widget);
-     Script.complete();
-   } else if (debug) {
-     Script.complete();
-     let widget = await createWidget(params);
-     await widget.presentMedium();
-   } else {
-     const appleDate = new Date("2001/01/01");
-     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
-     console.log(timestamp);
-     const callback = new CallbackURL("calshow:" + timestamp);
-     callback.open();
-     Script.complete();
-   }
+  if (config.runsInWidget) {
+    let widget = await createWidget(params);
+    Script.setWidget(widget);
+    Script.complete();
+  } else if (debug) {
+    Script.complete();
+    let widget = await createWidget(params);
+    await widget.presentMedium();
+  } else {
+    const appleDate = new Date("2001/01/01");
+    const timestamp = (new Date().getTime() - appleDate.getTime()) / 1000;
+    console.log(timestamp);
+    const callback = new CallbackURL("calshow:" + timestamp);
+    callback.open();
+    Script.complete();
+  }
 }
 
 function getCurrentDir() {
-    const fm = FileManager.local();
-    const thisScriptPath = module.filename;
-    return thisScriptPath.replace(fm.fileName(thisScriptPath, true), '');
+  const fm = FileManager.local();
+  const thisScriptPath = module.filename;
+  return thisScriptPath.replace(fm.fileName(thisScriptPath, true), '');
 }
 
 /**
@@ -67,47 +67,47 @@ function getCurrentDir() {
  * Returns null if it cannot be loaded.
  */
 function loadStoredParameters(name) {
-    const fm = FileManager.local();
-    const storageDir = getCurrentDir() + "storage";
-    const parameterPath = storageDir + "/" + name + ".json";
+  const fm = FileManager.local();
+  const storageDir = getCurrentDir() + "storage";
+  const parameterPath = storageDir + "/" + name + ".json";
 
-    if (!fm.fileExists(storageDir)) {
-        console.log("Storage folder does not exist!");
-        return null;
-    } else if (!fm.isDirectory(storageDir)) {
-        console.log("Storage folder exists but is not a directory!");
-        return null;
-    } else if (!fm.fileExists(parameterPath)) {
-        console.log("Parameter file does not exist!");
-        return null;
-    } else if (fm.isDirectory(parameterPath)) {
-        console.log("Parameter file is a directory!");
-        return null;
-    }
+  if (!fm.fileExists(storageDir)) {
+    console.log("Storage folder does not exist!");
+    return null;
+  } else if (!fm.isDirectory(storageDir)) {
+    console.log("Storage folder exists but is not a directory!");
+    return null;
+  } else if (!fm.fileExists(parameterPath)) {
+    console.log("Parameter file does not exist!");
+    return null;
+  } else if (fm.isDirectory(parameterPath)) {
+    console.log("Parameter file is a directory!");
+    return null;
+  }
 
-    const parameterJSON = JSON.parse(fm.readString(parameterPath));
-    if (parameterJSON !== null) {
-        return parameterJSON;
-    } else {
-        console.log("Could not load parameter file as JSON!");
-        return null;
-    }
+  const parameterJSON = JSON.parse(fm.readString(parameterPath));
+  if (parameterJSON !== null) {
+    return parameterJSON;
+  } else {
+    console.log("Could not load parameter file as JSON!");
+    return null;
+  }
 }
 
 async function createWidget(params) {
   const monthDiff = (params && params.monthDiff) ? params.monthDiff : 0;
-  
+
   let widget = new ListWidget();
   widget.backgroundColor = new Color(backgroundColor);
   setWidgetBackground(widget, imageName);
   widget.setPadding(16, 16, 16, 16);
-  
+
   const now = new Date();
   const monthToRender = new Date(now.getFullYear(), now.getMonth() + monthDiff, 1);
-  
+
   const monthMap = await buildMonth(monthToRender);
   const weekMap = await buildWeeks(monthToRender);
-  
+
   const freeDays = await getNextFreeDays(monthMap);
   console.log(freeDays);
 
@@ -160,12 +160,12 @@ async function isOncall(events) {
  */
 async function buildDay(date) {
   let events = await CalendarEvent.between(
-      new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-      new Date(date.getFullYear(), date.getMonth(), date.getDate()+1)
-    );
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+  );
   return {
-      isBusy: await isBusy(events),
-      isOncall: await isOncall(events)
+    isBusy: await isBusy(events),
+    isOncall: await isOncall(events)
   }
 }
 
@@ -180,13 +180,13 @@ async function getNextFreeDays(monthMap) {
   const lastDateInMonth = await getLastDateOfMonth(new Date());
   const lastDayInMonth = lastDateInMonth.getDate();
   let freeDays = [];
-  
-  for (var i=currentDay; i<lastDayInMonth; i++) {
+
+  for (var i = currentDay; i < lastDayInMonth; i++) {
     if (monthMap[i] && !monthMap[i]["isBusy"]) {
       freeDays.push(i);
     }
   }
-  
+
   return freeDays;
 }
 
@@ -200,8 +200,8 @@ async function buildMonth(date) {
   const lastDayInMonth = await getLastDateOfMonth(date);
   const daysInMonth = lastDayInMonth.getDate();
   let monthMap = {};
-  let i=1;
-  while (i<=daysInMonth) {
+  let i = 1;
+  while (i <= daysInMonth) {
     monthMap[i] = await buildDay(new Date(date.getFullYear(), date.getMonth(), i));
     i++;
   }
@@ -222,7 +222,7 @@ async function buildWeeks(date) {
   let dateIterator = new Date(firstDayOfCalendar);
   let weekMap = {};
   let week = 0;
-  
+
   while (dateIterator.getMonth() !== date.getMonth() + 1 || dateIterator.getDay() !== 0) {
     if (weekMap[week] === undefined) {
       weekMap[week] = {
@@ -230,12 +230,12 @@ async function buildWeeks(date) {
         "oncallDays": 0
       }
     }
-    
+
     const day = await buildDay(dateIterator);
     weekMap[week]["busyDays"] += day["isBusy"]
     weekMap[week]["oncallDays"] += day["isOncall"]
     dateIterator = new Date(dateIterator.setDate(dateIterator.getDate() + 1));
-    
+
     if (dateIterator.getDay() === 0) {
       week++;
     }
@@ -288,7 +288,7 @@ async function getSundayOfWeek(date) {
  */
 function getMondayOfWeek(date) {
   const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6:1);
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(new Date(date).setDate(diff));
 }
 
@@ -321,7 +321,7 @@ async function buildEventsView(stack, date, freeDays) {
       (showAllDayEvents &&
         event.isAllDay &&
         event.startDate.getTime() >
-          new Date(new Date().setDate(new Date().getDate() - 1))) ||
+        new Date(new Date().setDate(new Date().getDate() - 1))) ||
       (event.startDate.getTime() > date.getTime() &&
         !event.title.startsWith("Canceled:"))
     ) {
@@ -390,19 +390,19 @@ function buildCalendarView(stack, date, monthMap, weekMap) {
   for (let i = 0; i < month.length; i += 1) {
     let weekdayStack = calendarStack.addStack();
     weekdayStack.layoutVertically();
-    
+
     console.log(monthMap)
 
     for (let j = 0; j < month[i].length; j += 1) {
       let dayStack = weekdayStack.addStack();
       dayStack.size = new Size(spacing, spacing);
       dayStack.centerAlignContent();
-      
+
       console.log(month[i][j])
 
       const today = new Date();
       const isCurrentMonth = today.getMonth() === date.getMonth();
-      if (isCurrentMonth && 
+      if (isCurrentMonth &&
         month[i][j] === new Date().getDate().toString()) {
         const highlightedDate = getHighlightedDate(
           month[i][j],
@@ -436,11 +436,11 @@ function buildCalendarView(stack, date, monthMap, weekMap) {
 function isWeekend(index) {
   if (startWeekOnSunday) {
     switch (index) {
-      case 0:
-      case 6:
-        return true;
-      default:
-        return false;
+    case 0:
+    case 6:
+      return true;
+    default:
+      return false;
     }
   }
   return index > 4;
@@ -462,7 +462,14 @@ function buildMonthVertical(date, weekMap) {
   const firstDayStack = new Date(date.getFullYear(), date.getMonth(), 1);
   const lastDayStack = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-  let month = [["M"], ["T"], ["W"], ["T"], ["F"], ["S"]];
+  let month = [
+    ["M"],
+    ["T"],
+    ["W"],
+    ["T"],
+    ["F"],
+    ["S"]
+  ];
   let index = 1;
   let offset = 1;
 
@@ -496,7 +503,7 @@ function buildMonthVertical(date, weekMap) {
       month[index].push(" ");
     }
   });
-  
+
   month[7] = ['%'];
   for (const [key, value] of Object.entries(weekMap)) {
     const percentage = Math.round(100 * value["busyDays"] / 7);
@@ -591,8 +598,7 @@ function formatEvent(stack, event, color, opacity) {
 
 function addWidgetTextLine(
   widget,
-  text,
-  {
+  text, {
     color = "#ffffff",
     textSize = 12,
     opacity = 1,
@@ -610,18 +616,18 @@ function addWidgetTextLine(
   }
   textLine.textOpacity = opacity;
   switch (align) {
-    case "left":
-      textLine.leftAlignText();
-      break;
-    case "center":
-      textLine.centerAlignText();
-      break;
-    case "right":
-      textLine.rightAlignText();
-      break;
-    default:
-      textLine.leftAlignText();
-      break;
+  case "left":
+    textLine.leftAlignText();
+    break;
+  case "center":
+    textLine.centerAlignText();
+    break;
+  case "right":
+    textLine.rightAlignText();
+    break;
+  default:
+    textLine.leftAlignText();
+    break;
   }
 }
 
@@ -637,8 +643,8 @@ function setWidgetBackground(widget, imageName) {
 }
 
 if (params) {
-    console.log("Using params: " + JSON.stringify(params))
-    await run(params);
+  console.log("Using params: " + JSON.stringify(params))
+  await run(params);
 } else {
-    console.log("No valid parameters!")
+  console.log("No valid parameters!")
 }
