@@ -1,6 +1,7 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: pink; icon-glyph: magic;
+// icon-color: deep-blue; icon-glyph: chart-bar;
 
 //@ts-check
 
@@ -462,14 +463,7 @@ function buildMonthVertical(date, weekMap) {
   const firstDayStack = new Date(date.getFullYear(), date.getMonth(), 1);
   const lastDayStack = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-  let month = [
-    ["M"],
-    ["T"],
-    ["W"],
-    ["T"],
-    ["F"],
-    ["S"]
-  ];
+  let month = [["M"], ["T"], ["W"], ["T"], ["F"], ["S"]];
   let index = 1;
   let offset = 1;
 
