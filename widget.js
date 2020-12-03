@@ -1,6 +1,5 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: pink; icon-glyph: magic;
 // icon-color: deep-blue; icon-glyph: chart-bar;
 
 //@ts-check
@@ -108,9 +107,8 @@ async function createWidget(params) {
 
   const monthMap = await buildMonth(monthToRender);
   const weekMap = await buildWeeks(monthToRender);
-
+  const weeklyBusyPercentage = await getWeeklyPercentages(weekMap, "busyDays");
   const freeDays = await getNextFreeDays(monthMap);
-  console.log(freeDays);
 
   // layout horizontally
   const globalStack = widget.addStack();
@@ -119,7 +117,7 @@ async function createWidget(params) {
     await buildEventsView(globalStack, monthToRender, freeDays);
   }
   if (showCalendarView) {
-    buildCalendarView(globalStack, monthToRender, monthMap, weekMap);
+    buildCalendarView(globalStack, monthToRender, monthMap, weeklyBusyPercentage);
   }
 
   return widget;
@@ -219,12 +217,15 @@ async function buildWeeks(date) {
   const monthMap = buildMonth(date);
   const firstDayOfMonth = await getFirstDateOfMonth(date);
   const firstDayOfCalendar = startWeekOnSunday ? await getSundayOfWeek(firstDayOfMonth) : await getMondayOfWeek(firstDayOfMonth);
+  // Mod magic is a little weird because date's month's are 0-11 instead of 1-12
+  const nextMonthNum = ((date.getMonth() + 2) % 12) - 1;
 
   let dateIterator = new Date(firstDayOfCalendar);
   let weekMap = {};
   let week = 0;
 
-  while (dateIterator.getMonth() !== date.getMonth() + 1 || dateIterator.getDay() !== 0) {
+  // Go until its the first week after the next month starts
+  while ((dateIterator.getMonth() !== nextMonthNum || dateIterator.getDay() !== 0)) {
     if (weekMap[week] === undefined) {
       weekMap[week] = {
         "busyDays": 0,
@@ -243,6 +244,17 @@ async function buildWeeks(date) {
   }
 
   return weekMap;
+}
+
+// Returns an array of percentages for the given key if available.
+// Example Keys: "busyDays", "oncallDays"
+function getWeeklyPercentages(weekMap, weekMapKey) {
+  let percentages = [];
+  for (const [key, value] of Object.entries(weekMap)) {
+    const percentage = Math.round(100 * value[weekMapKey] / 7);
+    percentages.push(percentage);
+  }
+  return percentages;
 }
 
 /**
@@ -360,7 +372,7 @@ async function buildEventsView(stack, date, freeDays) {
  * @param  {WidgetStack} stack - onto which the calendar is built
  * @param  {Date} date - a date object that holds the current month
  */
-function buildCalendarView(stack, date, monthMap, weekMap) {
+function buildCalendarView(stack, date, monthMap, weeklyBusyPercentage) {
   const rightStack = stack.addStack();
   rightStack.layoutVertically();
 
@@ -386,20 +398,16 @@ function buildCalendarView(stack, date, monthMap, weekMap) {
   const calendarStack = rightStack.addStack();
   calendarStack.spacing = 2;
 
-  const month = buildMonthVertical(date, weekMap);
+  const month = buildMonthVertical(date, weeklyBusyPercentage);
 
   for (let i = 0; i < month.length; i += 1) {
     let weekdayStack = calendarStack.addStack();
     weekdayStack.layoutVertically();
 
-    console.log(monthMap)
-
     for (let j = 0; j < month[i].length; j += 1) {
       let dayStack = weekdayStack.addStack();
       dayStack.size = new Size(spacing, spacing);
       dayStack.centerAlignContent();
-
-      console.log(month[i][j])
 
       const today = new Date();
       const isCurrentMonth = today.getMonth() === date.getMonth();
@@ -459,7 +467,7 @@ function isWeekend(index) {
  *
  * @returns {Array<Array<string>>}
  */
-function buildMonthVertical(date, weekMap) {
+function buildMonthVertical(date, weeklyBusyPercentage) {
   const firstDayStack = new Date(date.getFullYear(), date.getMonth(), 1);
   const lastDayStack = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
@@ -499,11 +507,7 @@ function buildMonthVertical(date, weekMap) {
   });
 
   month[7] = ['%'];
-  for (const [key, value] of Object.entries(weekMap)) {
-    const percentage = Math.round(100 * value["busyDays"] / 7);
-    month[7].push(percentage);
-  }
-
+  month[7] = month[7].concat(weeklyBusyPercentage)
   return month;
 }
 
