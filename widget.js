@@ -107,14 +107,15 @@ async function createWidget(params) {
 
   const monthMap = await buildMonth(monthToRender);
   const weekMap = await buildWeeks(monthToRender);
-  const weeklyBusyPercentage = await getWeeklyPercentages(weekMap, "busyDays");
+  const weeklyBusyPercentage = getWeeklyPercentages(weekMap, "busyDays");
   const freeDays = await getNextFreeDays(monthMap);
 
   // layout horizontally
   const globalStack = widget.addStack();
 
   if (showEventsView) {
-    await buildEventsView(globalStack, monthToRender, freeDays);
+//     await buildEventsView(globalStack, monthToRender, freeDays);
+    buildGraphView(globalStack, weeklyBusyPercentage);
   }
   if (showCalendarView) {
     buildCalendarView(globalStack, monthToRender, monthMap, weeklyBusyPercentage);
@@ -303,6 +304,76 @@ function getMondayOfWeek(date) {
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(new Date(date).setDate(diff));
+}
+
+class LineChart {
+  // LineChart by https://kevinkub.de/
+
+  constructor(width, height, values) {
+    this.ctx = new DrawContext();
+    this.ctx.size = new Size(width, height);
+    this.values = values;
+  }
+  
+  _calculatePath() {
+    let maxValue = Math.max(...this.values);
+    let minValue = Math.min(...this.values);
+    let difference = maxValue - minValue;
+    let count = this.values.length;
+    let step = this.ctx.size.width / (count - 1);
+    let points = this.values.map((current, index, all) => {
+        let x = step*index;
+        let y = this.ctx.size.height - (current - minValue) / difference * this.ctx.size.height;
+        return new Point(x, y);
+    });
+    return this._getSmoothPath(points);
+  }
+      
+  _getSmoothPath(points) {
+    let path = new Path();
+    path.move(new Point(0, this.ctx.size.height));
+    path.addLine(points[0]);
+    for(let i = 0; i < points.length-1; i++) {
+      let xAvg = (points[i].x + points[i+1].x) / 2;
+      let yAvg = (points[i].y + points[i+1].y) / 2;
+      let avg = new Point(xAvg, yAvg);
+      let cp1 = new Point((xAvg + points[i].x) / 2, points[i].y);
+      let next = new Point(points[i+1].x, points[i+1].y);
+      let cp2 = new Point((xAvg + points[i+1].x) / 2, points[i+1].y);
+      path.addQuadCurve(avg, cp1);
+      path.addQuadCurve(next, cp2);
+    }
+    path.addLine(new Point(this.ctx.size.width, this.ctx.size.height));
+    path.closeSubpath();
+    return path;
+  }
+  
+  configure(fn) {
+    let path = this._calculatePath();
+    if(fn) {
+      fn(this.ctx, path);
+    } else {
+      this.ctx.addPath(path);
+      this.ctx.fillPath(path);
+    }
+    return this.ctx;
+  }
+
+}
+
+function buildGraphView(stack, dataToGraph) {
+  let graphStack = stack.addStack();
+  graphStack.layoutVertically();
+  stack.addSpacer();
+
+  let chart = new LineChart(400, 200, dataToGraph).configure((ctx, path) => {
+    ctx.opaque = false;
+    ctx.setFillColor(new Color("888888", .5));
+    ctx.addPath(path);
+    ctx.fillPath(path);
+  }).getImage();
+  graphStack.addSpacer();
+  let image = graphStack.addImage(chart);
 }
 
 /**
