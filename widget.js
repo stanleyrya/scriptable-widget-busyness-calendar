@@ -218,8 +218,7 @@ async function buildWeeks(date) {
   const monthMap = buildMonth(date);
   const firstDayOfMonth = await getFirstDateOfMonth(date);
   const firstDayOfCalendar = startWeekOnSunday ? await getSundayOfWeek(firstDayOfMonth) : await getMondayOfWeek(firstDayOfMonth);
-  // Mod magic is a little weird because date's month's are 0-11 instead of 1-12
-  const nextMonthNum = ((date.getMonth() + 2) % 12) - 1;
+  const nextMonthNum = new Date(date.getFullYear(), date.getMonth() + 1, 1).getMonth();
 
   let dateIterator = new Date(firstDayOfCalendar);
   let weekMap = {};
@@ -600,7 +599,7 @@ function getHighlightedDate(date, color) {
   drawing.setFont(Font.boldSystemFont(25));
   drawing.setTextAlignedCenter();
   drawing.setTextColor(new Color("#ffffff"));
-  drawing.drawTextInRect(date, new Rect(0, 10, size, size));
+  drawing.drawTextInRect("" + date, new Rect(0, 10, size, size));
   const currentDayImg = drawing.getImage();
   return currentDayImg;
 }
