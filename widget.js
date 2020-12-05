@@ -313,7 +313,7 @@ class LineChart {
     this.ctx.size = new Size(width, height);
     this.values = values;
   }
-  
+
   _calculatePath() {
     let maxValue = Math.max(...this.values);
     let minValue = Math.min(...this.values);
@@ -327,7 +327,7 @@ class LineChart {
     });
     return this._getSmoothPath(points);
   }
-      
+
   _getSmoothPath(points) {
     let path = new Path();
     path.move(new Point(0, this.ctx.size.height));
@@ -346,7 +346,7 @@ class LineChart {
     path.closeSubpath();
     return path;
   }
-  
+
   configure(fn) {
     let path = this._calculatePath();
     if(fn) {
@@ -361,18 +361,21 @@ class LineChart {
 }
 
 function buildGraphView(stack, dataToGraph) {
-  let graphStack = stack.addStack();
-  graphStack.layoutVertically();
+  const leftStack = stack.addStack();
+  leftStack.layoutVertically();
+  // push event view to the left
   stack.addSpacer();
 
-  let chart = new LineChart(400, 200, dataToGraph).configure((ctx, path) => {
+  let chart = new LineChart(500, 400, dataToGraph).configure((ctx, path) => {
     ctx.opaque = false;
     ctx.setFillColor(new Color("888888", .5));
     ctx.addPath(path);
     ctx.fillPath(path);
   }).getImage();
-  graphStack.addSpacer();
-  let image = graphStack.addImage(chart);
+
+  // center the whole left part of the widget
+  leftStack.addSpacer();
+  let image = leftStack.addImage(chart);
 }
 
 /**
