@@ -2,11 +2,18 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-blue; icon-glyph: chart-bar;
 
+
 //@ts-check
 
 // use true to initially give Scriptable calendar access
 // use false to open Calendar when script is run - when tapping on the widget
 const debug = true;
+const blocklist = [
+  "Oncall",
+  "Cleaners",
+  "Haircut",
+  "Prep"
+]
 
 // get widget params
 const params = JSON.parse(args.widgetParameter) || loadStoredParameters(Script.name()) || { bg: "1121.jpg" };
@@ -125,17 +132,20 @@ async function createWidget(params) {
 }
 
 /**
- * Checks if the day is considered "busy"
+ * Checks if a list of events are considered "busy". Uses the blocklist.
  *
  * @param  {[CalendarEvent]} events - the events that are being processed
+ * @return boolean isBusy
  */
-async function isBusy(events) {
-  for (const event of events) {
-    if (event["title"] !== "Oncall") {
-      return true;
+function isBusy(events) {
+    for (const event of events) {
+        if (blocklist && blocklist.includes(event["title"])) {
+            continue;
+        }
+
+        return true;
     }
-  }
-  return false;
+    return false;
 }
 
 /**
@@ -159,10 +169,12 @@ async function isOncall(events) {
  * @param  {Date} date - a date object that will be described
  */
 async function buildDay(date) {
-  let events = await CalendarEvent.between(
-    new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-    new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-  );
+    let events = await CalendarEvent.between(
+        new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+        new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1),
+        // quick hack to just use default calendar
+        [await Calendar.defaultForEvents()]
+    );
   return {
     isBusy: await isBusy(events),
     isOncall: await isOncall(events)
@@ -315,8 +327,8 @@ class LineChart {
   }
 
   _calculatePath() {
-    let maxValue = Math.max(...this.values);
-    let minValue = Math.min(...this.values);
+    let maxValue = 100; //Math.max(...this.values);
+    let minValue = 0; //Math.min(...this.values);
     let difference = maxValue - minValue;
     let count = this.values.length;
     let step = this.ctx.size.width / (count - 1);
